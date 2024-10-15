@@ -23,7 +23,7 @@ tritium_release_prefactor = ${units 1.0e13 1/s} # from TMAP7 V&V input file
 tritium_release_energy = ${units 4.2 eV}
 tritium_trapping_prefactor = ${units 2.096e15 1/s} # from TMAP7 V&V input file
 tritium_trapping_energy = ${tritium_diffusivity_energy} # J/K - from TMAP7 V&V input file
-trap_per_free = 1e-25 # (-)
+trap_per_free2 = 1e-25 # (-)
 half_life_s = ${units 12.3232 year -> s}
 decay_rate_constant = ${fparse 0.693/half_life_s} # 1/s
 
@@ -118,7 +118,7 @@ dt_max = ${fparse end_time/100} # s
     type = EmptySitesAux
     N = ${fparse density_material / density_scalar} # (-)
     Ct0 = 'trapping_sites_fraction_function' # atomic fraction
-    trap_per_free = ${trap_per_free}
+    trap_per_free = ${trap_per_free2}
     trapped_concentration_variables = tritium_trapped_concentration_scaled
   []
   [scaled_empty_sites]
@@ -180,14 +180,14 @@ dt_max = ${fparse end_time/100} # s
     type = ScaledCoupledTimeDerivative
     variable = tritium_mobile_concentration_scaled
     v = tritium_trapped_concentration_scaled
-    factor = ${trap_per_free}
+    factor = ${trap_per_free2}
   []
   # re-adding it to the equation of mobile tritium because it is accounted for in coupled_time_tritium, and needs to be removed
   [decay_tritium_trapped]
     type = MatReaction
     variable = tritium_mobile_concentration_scaled
     v = tritium_trapped_concentration_scaled
-    reaction_rate = '${fparse - decay_rate_constant * trap_per_free}'
+    reaction_rate = '${fparse - decay_rate_constant * trap_per_free2}'
   []
   # kernels for the helium concentration equation
   [time_helium]
@@ -222,7 +222,7 @@ dt_max = ${fparse end_time/100} # s
     Ct0 = 'trapping_sites_fraction_function' # (atomic fraction)
     mobile_concentration = 'tritium_mobile_concentration_scaled' # (-)
     temperature = temperature # (K)
-    trap_per_free = ${trap_per_free}
+    trap_per_free = ${trap_per_free2}
   []
   [release]
     type = ReleasingNodalKernel
