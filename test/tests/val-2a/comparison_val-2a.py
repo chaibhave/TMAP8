@@ -34,7 +34,7 @@ def numerical_solution_on_experiment_input(experiment_input, tmap_input, tmap_ou
     return new_tmap_output
 
 
-# Read simulation data
+# Read gold simulation data
 if "/tmap8/doc/" in script_folder.lower():  # if in documentation folder
     csv_folder = "../../../../test/tests/val-2a/gold/val-2a_out.csv"
 else:  # if in test folder
@@ -47,6 +47,44 @@ simulation_recom_flux_left_TMAP4 = simulation_TMAP4_data[
 simulation_recom_flux_right_TMAP4 = simulation_TMAP4_data[
     "scaled_recombination_flux_right"
 ]
+
+# Read new simulation data
+if "/tmap8/doc/" in script_folder.lower():  # if in documentation folder
+    csv_folder_new = "../../../../test/tests/val-2a/val-2a_out.csv"
+else:  # if in test folder
+    csv_folder_new = "./val-2a_out.csv"
+try:
+    simulation_new_data = pd.read_csv(csv_folder_new)
+    simulation_time_new = simulation_new_data["time"]
+    simulation_recom_flux_left_new = simulation_new_data[
+        "scaled_recombination_flux_left"
+    ]
+    simulation_recom_flux_right_new = simulation_new_data[
+        "scaled_recombination_flux_right"
+    ]
+    has_new_data = True
+except FileNotFoundError:
+    has_new_data = False
+    print("New simulation data not found, plotting gold results only")
+
+# Read calibrated simulation data
+if "/tmap8/doc/" in script_folder.lower():  # if in documentation folder
+    csv_folder_calib = "../../../../test/tests/val-2a/val-2a_param_reduced_out.csv"
+else:  # if in test folder
+    csv_folder_calib = "./val-2a_param_reduced_out.csv"
+try:
+    simulation_calib_data = pd.read_csv(csv_folder_calib)
+    simulation_time_calib = simulation_calib_data["time"]
+    simulation_recom_flux_left_calib = simulation_calib_data[
+        "scaled_recombination_flux_left"
+    ]
+    simulation_recom_flux_right_calib = simulation_calib_data[
+        "scaled_recombination_flux_right"
+    ]
+    has_calib_data = True
+except FileNotFoundError:
+    has_calib_data = False
+    print("Calibrated simulation data not found")
 
 # Read experiment data
 if "/tmap8/doc/" in script_folder.lower():  # if in documentation folder
@@ -67,15 +105,40 @@ ax.plot(
     simulation_time_TMAP4 / 3600,
     simulation_recom_flux_right_TMAP4,
     linestyle="-",
-    label=r"TMAP8",
+    label=r"TMAP8 (Gold)",
     c="tab:gray",
+    linewidth=2,
 )
+
+# Plot new simulation results if available
+if has_new_data:
+    ax.plot(
+        simulation_time_new / 3600,
+        simulation_recom_flux_right_new,
+        linestyle="-",
+        label=r"TMAP8 (claude-code)",
+        c="tab:blue",
+        linewidth=2,
+    )
+
+# Plot calibrated simulation results if available
+# if has_calib_data:
+#     ax.plot(
+#         simulation_time_calib / 3600,
+#         simulation_recom_flux_right_calib,
+#         linestyle="-",
+#         label=r"TMAP8 (Calibrated)",
+#         c="tab:green",
+#         linewidth=2,
+#     )
+
 ax.plot(
     experiment_time_TMAP4 / 3600,
     experiment_flux_TMAP4,
     linestyle="--",
     label=r"Experiment",
     c="k",
+    linewidth=1.5,
 )
 
 ax.set_xlabel("Time (hr)")
@@ -84,12 +147,41 @@ ax.legend(loc="best")
 ax.set_ylim(bottom=0)
 ax.set_xlim(left=-0.1, right=2e4 / 3600)
 plt.grid(visible=True, which="major", color="0.65", linestyle="--", alpha=0.3)
+
+# Calculate RMSPE for gold results
 tmap_flux_for_rmspe = numerical_solution_on_experiment_input(
     experiment_time_TMAP4, simulation_time_TMAP4, simulation_recom_flux_right_TMAP4
 )
 RMSE = np.sqrt(np.mean((tmap_flux_for_rmspe - experiment_flux_TMAP4) ** 2))
 RMSPE = RMSE * 100 / np.mean(experiment_flux_TMAP4)
-ax.text(1e4 / 3600.0, 40e15, "RMSPE = %.2f " % RMSPE + "%", fontweight="bold")
+
+# Calculate RMSPE for new results if available
+if has_new_data:
+    tmap_flux_new_for_rmspe = numerical_solution_on_experiment_input(
+        experiment_time_TMAP4, simulation_time_new, simulation_recom_flux_right_new
+    )
+    RMSE_new = np.sqrt(np.mean((tmap_flux_new_for_rmspe - experiment_flux_TMAP4) ** 2))
+    RMSPE_new = RMSE_new * 100 / np.mean(experiment_flux_TMAP4)
+
+# Calculate RMSPE for calibrated results if available
+if has_calib_data:
+    tmap_flux_calib_for_rmspe = numerical_solution_on_experiment_input(
+        experiment_time_TMAP4, simulation_time_calib, simulation_recom_flux_right_calib
+    )
+    RMSE_calib = np.sqrt(np.mean((tmap_flux_calib_for_rmspe - experiment_flux_TMAP4) ** 2))
+    RMSPE_calib = RMSE_calib * 100 / np.mean(experiment_flux_TMAP4)
+
+# Display RMSPE values
+text_y_start = 4.5e16
+text_y_spacing = 1.5e16
+text_x = 1e4 / 3600.0
+
+ax.text(text_x, text_y_start, "RMSPE (Gold) = %.2f%%" % RMSPE, fontweight="bold")
+if has_new_data:
+    ax.text(text_x, text_y_start - text_y_spacing, "RMSPE (claude-code) = %.2f%%" % RMSPE_new, fontweight="bold", color="tab:blue")
+# if has_calib_data:
+#     text_offset = 2 * text_y_spacing if has_new_data else text_y_spacing
+#     ax.text(text_x, text_y_start - text_offset, "RMSPE (Calibrated) = %.2f%%" % RMSPE_calib, fontweight="bold", color="tab:green")
 ax.minorticks_on()
 ax.ticklabel_format(axis="y", style="sci", scilimits=(15, 15))
 plt.savefig(f"{TMAP4_file_base}.png", bbox_inches="tight", dpi=300)

@@ -1,36 +1,77 @@
-# Validation Problem #2a from TMAP4/TMAP7 V&V document
+# Validation Problem #2a from TMAP4/TMAP7 V&V document - PARAMETERIZED VERSION
 # Ion Implantation Experiment on Primary Candidate Alloy (PCA)
 # Deuterium permeation through 0.5 mm steel sample
+#
+# This input file is parameterized for Bayesian calibration / uncertainty quantification
+# Parameters can be overridden via command line:
+#   ~/projects/TMAP8/tmap8-opt -i val-2a_param.i diffusivity=5.0e-10 Kr_left_max=2.0e-27
+#
+# See PRIOR_DISTRIBUTIONS_JUSTIFICATION.md for physical basis of parameter ranges
+
+# ============================================================================
+# FIXED PARAMETERS (experimental conditions, not calibrated)
+# ============================================================================
 
 # Geometry
-thickness = 5e-4 # m - sample thickness (0.5 mm)
+thickness = 5e-4 # m - sample thickness (0.5 mm) - MEASURED
 
-# Material properties
-diffusivity = 3.0e-10 # m^2/s - deuterium diffusivity in PCA
-
-# Implantation parameters
-implantation_depth = 14e-9 # m - average implantation depth (11 nm from TMAP4 instructions, 14 nm from doc)
-implantation_sigma = 2.4e-9 # m - standard deviation of implantation depth
-implantation_flux = ${fparse 4.9e19 * 0.75} # atom/m^2/s - 75% retention, 25% re-emitted
-gaussian_factor = 1.5 # factor to match experimental data
-
-# Boundary condition parameters - Left (upstream, implantation side)
-Kr_left_max = 1.0e-27 # m^4/atom/s - maximum recombination coefficient
-Kr_left_time_constant = 6.0e-5 # 1/s - time constant for surface cleanup
-Kr_left_fraction = 0.9999 # fraction of cleanup
-
-# Boundary condition parameters - Right (downstream, permeation side)
-Kr_right = 2.0e-31 # m^4/atom/s - downstream recombination coefficient (constant)
+# Beam flux
+implantation_flux = ${fparse 4.9e19 * 0.75} # atom/m^2/s - 75% retention - MEASURED
 
 # Time parameters
-end_time = 20000 # s - total simulation time
+end_time = 20000 # s - total simulation time - EXPERIMENTAL DURATION
 
-# Beam schedule times (from experimental paper via documentation)
+# Beam schedule times (from experimental paper) - RECORDED
 beam_on_1_end = 5820
 beam_off_1_end = 9056
 beam_on_2_end = 12062
 beam_off_2_end = 14572
 beam_on_3_end = 17678
+
+# ============================================================================
+# CALIBRATION PARAMETERS (with baseline/default values)
+# Can be overridden via command line or by stochastic sampler
+# ============================================================================
+
+# 1. Diffusivity - Bulk transport property
+diffusivity = 3.0e-10 # m^2/s - deuterium diffusivity in PCA
+# Prior: Log-Uniform[1e-10, 1e-9] m^2/s
+# Basis: Literature scatter, trapping effects, microstructure
+
+# 2. Implantation depth - Average range from SRIM
+implantation_depth = 14e-9 # m - from SRIM calculations
+# Prior: Normal(μ=14e-9, σ=2e-9) m
+# Basis: SRIM uncertainty ±15%, composition variations
+
+# 3. Implantation straggling - Range spread
+implantation_sigma = 2.4e-9 # m - standard deviation
+# Prior: Normal(μ=2.4e-9, σ=0.5e-9) m
+# Basis: Straggling uncertainty ±20%, thermal broadening
+
+# 4. Gaussian scaling factor - Empirical profile adjustment
+gaussian_factor = 1.5 # dimensionless
+# Prior: Uniform[1.0, 2.5]
+# Basis: SRIM accuracy, retention fraction, secondary effects
+
+# 5. Maximum recombination coefficient - Upstream surface after cleanup
+Kr_left_max = 1.0e-27 # m^4/atom/s
+# Prior: Log-Uniform[1e-28, 1e-26] m^4/atom/s
+# Basis: Surface state after sputtering, oxide removal
+
+# 6. Surface cleanup time constant - Sputtering dynamics
+Kr_left_time_constant = 6.0e-5 # 1/s (τ = 16,667 s = 4.6 hrs)
+# Prior: Log-Uniform[1e-5, 2e-4] 1/s
+# Basis: Sputtering yield, re-oxidation balance
+
+# 7. Surface cleanup fraction - Extent of oxide removal
+Kr_left_fraction = 0.9999 # dimensionless (0-1)
+# Prior: Beta(α=50, β=2), practical range [0.95, 1.0]
+# Basis: Vacuum quality, steady-state Kr value
+
+# 8. Downstream recombination coefficient - No beam exposure
+Kr_right = 2.0e-31 # m^4/atom/s - constant
+# Prior: Log-Uniform[1e-32, 1e-30] m^4/atom/s
+# Basis: Oxidized surface, no sputtering
 
 [Mesh]
   [generated_mesh]
@@ -279,7 +320,7 @@ beam_on_3_end = 17678
 []
 
 [Outputs]
-  file_base = 'val-2a_out'
+  file_base = 'val-2a_param_out'  # Different from baseline to avoid overwriting
   [csv]
     type = CSV
   []

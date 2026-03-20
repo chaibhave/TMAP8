@@ -1,36 +1,63 @@
-# Validation Problem #2a from TMAP4/TMAP7 V&V document
+# Validation Problem #2a from TMAP4/TMAP7 V&V document - REDUCED CALIBRATION VERSION
 # Ion Implantation Experiment on Primary Candidate Alloy (PCA)
 # Deuterium permeation through 0.5 mm steel sample
+#
+# REDUCED PARAMETER SET - Based on sensitivity analysis results
+# Only the 2 most influential parameters are calibrated:
+#   - Kr_left_fraction (ST = 1.218) - Surface cleanup fraction
+#   - gaussian_factor (ST = 0.123) - Implantation profile scaling
+#
+# All other parameters fixed to nominal values (ST < 0.01)
+#
+# Parameters can be overridden via command line:
+#   ~/projects/TMAP8/tmap8-opt -i val-2a_param_reduced.i Kr_left_fraction=0.995 gaussian_factor=1.8
+
+# ============================================================================
+# FIXED PARAMETERS (experimental conditions, not calibrated)
+# ============================================================================
 
 # Geometry
-thickness = 5e-4 # m - sample thickness (0.5 mm)
+thickness = 5e-4 # m - sample thickness (0.5 mm) - MEASURED
 
-# Material properties
-diffusivity = 3.0e-10 # m^2/s - deuterium diffusivity in PCA
-
-# Implantation parameters
-implantation_depth = 14e-9 # m - average implantation depth (11 nm from TMAP4 instructions, 14 nm from doc)
-implantation_sigma = 2.4e-9 # m - standard deviation of implantation depth
-implantation_flux = ${fparse 4.9e19 * 0.75} # atom/m^2/s - 75% retention, 25% re-emitted
-gaussian_factor = 1.5 # factor to match experimental data
-
-# Boundary condition parameters - Left (upstream, implantation side)
-Kr_left_max = 1.0e-27 # m^4/atom/s - maximum recombination coefficient
-Kr_left_time_constant = 6.0e-5 # 1/s - time constant for surface cleanup
-Kr_left_fraction = 0.9999 # fraction of cleanup
-
-# Boundary condition parameters - Right (downstream, permeation side)
-Kr_right = 2.0e-31 # m^4/atom/s - downstream recombination coefficient (constant)
+# Beam flux
+implantation_flux = ${fparse 4.9e19 * 0.75} # atom/m^2/s - 75% retention - MEASURED
 
 # Time parameters
-end_time = 20000 # s - total simulation time
+end_time = 20000 # s - total simulation time - EXPERIMENTAL DURATION
 
-# Beam schedule times (from experimental paper via documentation)
+# Beam schedule times (from experimental paper) - RECORDED
 beam_on_1_end = 5820
 beam_off_1_end = 9056
 beam_on_2_end = 12062
 beam_off_2_end = 14572
 beam_on_3_end = 17678
+
+# ============================================================================
+# FIXED PARAMETERS (low sensitivity, ST < 0.01)
+# ============================================================================
+
+diffusivity = 3.0e-10 # m^2/s - ST ~ 0.0
+implantation_depth = 14e-9 # m - ST = 0.0009
+implantation_sigma = 2.4e-9 # m - ST = 0.0050
+Kr_left_max = 1.0e-27 # m^4/atom/s - ST ~ 0.0
+Kr_left_time_constant = 6.0e-5 # 1/s - ST ~ 0.0
+Kr_right = 2.0e-31 # m^4/atom/s - ST ~ 0.0
+
+# ============================================================================
+# CALIBRATION PARAMETERS (high sensitivity)
+# ============================================================================
+
+# 1. Surface cleanup fraction - MOST INFLUENTIAL (ST = 1.218)
+Kr_left_fraction = 0.9900 # dimensionless (0-1)
+# Prior: Beta(α=50, β=2), practical range [0.95, 1.0]
+# Basis: Vacuum quality, steady-state Kr value
+# Physical meaning: Extent to which ion bombardment removes surface oxides
+
+# 2. Gaussian scaling factor - SECOND MOST INFLUENTIAL (ST = 0.123)
+gaussian_factor = 1.5 # dimensionless
+# Prior: Uniform[1.0, 2.5]
+# Basis: SRIM accuracy, retention fraction, secondary effects
+# Physical meaning: Empirical adjustment to implantation profile shape
 
 [Mesh]
   [generated_mesh]
@@ -129,10 +156,10 @@ beam_on_3_end = 17678
   [max_dt_function]
     type = ParsedFunction
     expression = 'if(t<${beam_on_1_end}, 4,
-                  if(t<${beam_off_1_end}, 300,
-                  if(t<${beam_on_2_end}, 4,
-                  if(t<${beam_off_2_end}, 300,
-                  if(t<${beam_on_3_end}, 4, 300)))))'
+                 if(t<${beam_off_1_end}, 300,
+                 if(t<${beam_on_2_end}, 4,
+                 if(t<${beam_off_2_end}, 300,
+                 if(t<${beam_on_3_end}, 4, 300)))))'
   []
 []
 
@@ -279,7 +306,7 @@ beam_on_3_end = 17678
 []
 
 [Outputs]
-  file_base = 'val-2a_out'
+  file_base = 'val-2a_param_reduced_out'
   [csv]
     type = CSV
   []
